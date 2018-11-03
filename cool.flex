@@ -75,19 +75,10 @@ int inc_buf_len(int len)
  * Define names for regular expressions here.
  */
 
-DARROW          =>
-
-
 TYPEID  [A-Z][A-Za-z0-9_]*
-
 INT_CONST [0-9]+
-
-STR_CONST \"[^\"]*\"
-
 OBJECTID [a-z][A-Za-z0-9_]*
-
 PUNC [;:(){},.@<=\-+*/~]
-
 CLOSE_COMM "*)"
 OPEN_COMM  "(*"
 %%
