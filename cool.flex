@@ -41,8 +41,20 @@ extern YYSTYPE cool_yylval;
 /*
  *  Add Your own definitions here
  */
-long int open_brace = 0;
+int open_brace = 0;
+size_t buf_len = 0;
 
+int inc_buf_len(int len)
+{
+    buf_len +=len;
+
+    if(buf_len >= MAX_STR_CONST)
+        return -1;
+    else
+    {
+        return 0;
+    }
+}
 
 %}
 
@@ -50,7 +62,7 @@ long int open_brace = 0;
 %option noyywrap
 
 
-%x COMMENT COMMENT2 STRING
+%x COMMENT COMMENT2 STRING ERROR_TOO_LONG_CONST PARSE_ERROR_STRING
 /*
  * Define names for regular expressions here.
  */
@@ -83,8 +95,10 @@ OPEN_COMM  "(*"
   *  The multiple-character operators.
   */
 
+<INITIAL>\n {curr_lineno++;}
+<COMMENT>\n {curr_lineno++;}
 
-<INITIAL>-- {BEGIN(COMMENT2);}
+<INITIAL>-- { curr_lineno++; BEGIN(COMMENT2);}
 <COMMENT2>[^\n] {}
 <COMMENT2>"\n" {BEGIN(INITIAL);}
 
@@ -92,11 +106,10 @@ OPEN_COMM  "(*"
  /*
   *  возможны траблы
   */
-<COMMENT>[^*)(]* {}
-<COMMENT>"*"[^)] {}
-
-<COMMENT>"("[^*] {}
-<COMMENT>[^*]*")" {}
+<COMMENT>[^*)(\n]* { }
+<COMMENT>"*"/[^)] {}
+<COMMENT>"("[^*] { }
+<COMMENT>[^*\n]*")" {}
 
 
 <INITIAL,COMMENT>{OPEN_COMM} {
@@ -127,12 +140,22 @@ OPEN_COMM  "(*"
 
 
 <INITIAL>\" {
+    buf_len = 0;
    string_buf_ptr = string_buf;
    BEGIN(STRING);
 }
 
 <STRING>\n {yylval.error_msg ="Unterminated string constant"; BEGIN(INITIAL);  return (ERROR);} 
 
+<STRING>\0 {
+    yylval.error_msg ="String contains escaped null character.";
+    BEGIN(PARSE_ERROR_STRING);
+    return (ERROR);
+}
+
+<PARSE_ERROR_STRING>\" {BEGIN(INITIAL);}
+<PARSE_ERROR_STRING>[^\n] {}
+<PARSE_ERROR_STRING>\n {BEGIN(INITIAL); }
 
 <STRING>\\[\"ntfb\\] {
     char tmpstr[1];
@@ -164,21 +187,30 @@ OPEN_COMM  "(*"
         default:
             printf("sosi\n");
     }
+
+    if(inc_buf_len(1) != 0)
+        BEGIN(ERROR_TOO_LONG_CONST);
+
     strncpy(string_buf_ptr, tmpstr, 1);
     string_buf_ptr++;
-}
+   }
 
-<STRING>\\[^\"ntfb\\] {
-
+<STRING>\\[^\"ntfb\\\0] {
     char tmpstr[1];
     tmpstr[0] = yytext[1];
+
+    if(inc_buf_len(1) != 0)
+        BEGIN(ERROR_TOO_LONG_CONST);
+
     strncpy(string_buf_ptr, tmpstr, 1);
     string_buf_ptr++;
 }
 
 <STRING>\" {
     *string_buf_ptr = '\0';
-    cool_yylval.symbol = inttable.add_string(string_buf); 
+
+
+       cool_yylval.symbol = inttable.add_string(string_buf); 
     BEGIN(INITIAL);
     return (STR_CONST);
 }
@@ -191,11 +223,14 @@ OPEN_COMM  "(*"
 
 <STRING>[^"\"] { 
     int len = strlen(yytext);
+    if(inc_buf_len(len) != 0)
+        BEGIN(ERROR_TOO_LONG_CONST);
+
     strncpy(string_buf_ptr, yytext, len);
     string_buf_ptr+=len;
 }
 
-
+<ERROR_TOO_LONG_CONST>. { BEGIN(INITIAL); yylval.error_msg = "String constant too long"; return (ERROR); }
 
 
 <INITIAL>[ ]+ {}
@@ -206,25 +241,25 @@ OPEN_COMM  "(*"
 
 
 
-<INITIAL>(?-i:t)(?i:rue)     {    curr_lineno = yylineno; cool_yylval.boolean = true;  return (BOOL_CONST);}
-<INITIAL>(?-i:f)(?i:alse) {curr_lineno = yylineno;  cool_yylval.boolean = false;  return (BOOL_CONST);  } 
+<INITIAL>(?-i:t)(?i:rue)     {    cool_yylval.boolean = true;  return (BOOL_CONST);}
+<INITIAL>(?-i:f)(?i:alse) { cool_yylval.boolean = false;  return (BOOL_CONST);  } 
 
-<INITIAL>(?i:class)    {curr_lineno = yylineno;  return (CLASS); }
-<INITIAL>(?i:else)   {curr_lineno = yylineno;  return (ELSE);  }
-<INITIAL>(?i:fi)      {curr_lineno = yylineno;  return (FI);  }
-<INITIAL>(?i:if)   { curr_lineno = yylineno;  return (IF); }
-<INITIAL>(?i:in)       {curr_lineno = yylineno;  return (IN);  }
-<INITIAL>(?i:inherits)   { curr_lineno = yylineno;  return (INHERITS); }
-<INITIAL>(?i:let)       { curr_lineno = yylineno;  return (LET); }
-<INITIAL>(?i:loop)    {curr_lineno = yylineno;  return (LOOP);  }
-<INITIAL>(?i:pool)   { curr_lineno = yylineno;  return (POOL); }
-<INITIAL>(?i:then)   {curr_lineno = yylineno;  return (THEN);  }
-<INITIAL>(?i:while)   {curr_lineno = yylineno;  return (WHILE);  }
-<INITIAL>(?i:case)    {curr_lineno = yylineno;  return (CASE);  }
-<INITIAL>(?i:esac)   { curr_lineno = yylineno;  return (ESAC); }
-<INITIAL>(?i:of)      { curr_lineno = yylineno;  return (OF); }
-<INITIAL>(?i:new)     { curr_lineno = yylineno;  return (NEW); }
-<INITIAL>(?i:isvoid)  { curr_lineno = yylineno;  return (ISVOID); }
+<INITIAL>(?i:class)    { return (CLASS); }
+<INITIAL>(?i:else)   { return (ELSE);  }
+<INITIAL>(?i:fi)      {  return (FI);  }
+<INITIAL>(?i:if)   {   return (IF); }
+<INITIAL>(?i:in)       {  return (IN);  }
+<INITIAL>(?i:inherits)   {   return (INHERITS); }
+<INITIAL>(?i:let)       {   return (LET); }
+<INITIAL>(?i:loop)    {  return (LOOP);  }
+<INITIAL>(?i:pool)   {  return (POOL); }
+<INITIAL>(?i:then)   { return (THEN);  }
+<INITIAL>(?i:while)   {  return (WHILE);  }
+<INITIAL>(?i:case)    {  return (CASE);  }
+<INITIAL>(?i:esac)   {   return (ESAC); }
+<INITIAL>(?i:of)      { return (OF); }
+<INITIAL>(?i:new)     {  return (NEW); }
+<INITIAL>(?i:isvoid)  { return (ISVOID); }
 <INITIAL>(?i:not)  {curr_lineno = yylineno;  return (NOT);  }
 
 
