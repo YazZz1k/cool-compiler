@@ -41,6 +41,8 @@ extern YYSTYPE cool_yylval;
 /*
  *  Add Your own definitions here
  */
+long int open_brace = 0;
+
 
 %}
 
@@ -86,21 +88,115 @@ OPEN_COMM  "(*"
 <COMMENT2>[^\n] {}
 <COMMENT2>"\n" {BEGIN(INITIAL);}
 
-<INITIAL>{OPEN_COMM} {
-    BEGIN(COMMENT);}
-<COMMENT>{CLOSE_COMM}  {
-    BEGIN(INITIAL);
-    }
 
-<COMMENT>[^*(]|"("[^*]|"*"[^)] {}
+ /*
+  *  возможны траблы
+  */
+<COMMENT>[^*)(]* {}
+<COMMENT>"*"[^)] {}
+
+<COMMENT>"("[^*] {}
+<COMMENT>[^*]*")" {}
+
+
+<INITIAL,COMMENT>{OPEN_COMM} {
+    open_brace++;
+    BEGIN(COMMENT);
+}
+
+<COMMENT>{CLOSE_COMM} {
+    open_brace--;
+    if(open_brace == 0)
+    {
+        BEGIN(INITIAL);
+    }
+    else
+    {
+
+    }
+}
+
 
 <COMMENT><<EOF>> {
-    yylval.error_msg = "EOF in comment";
-    BEGIN(INITIAL);
+     yylval.error_msg = "EOF in comment";
+     BEGIN(INITIAL);
     return (ERROR);
 }
 
-<INITIAL>{CLOSE_COMM}   { yylval.error_msg ="Unmatched *)"; return (ERROR); }
+<INITIAL>{CLOSE_COMM} { yylval.error_msg ="Unmatched *)"; return (ERROR); }
+
+
+<INITIAL>\" {
+   string_buf_ptr = string_buf;
+   BEGIN(STRING);
+}
+
+<STRING>\n {yylval.error_msg ="Unterminated string constant"; BEGIN(INITIAL);  return (ERROR);} 
+
+
+<STRING>\\[\"ntfb\\] {
+    char tmpstr[1];
+
+    switch(yytext[1])
+    {
+        case 'n':
+            tmpstr[0] = '\n';
+            break;
+
+        case 't':
+            tmpstr[0] = '\t';
+            break;
+
+        case 'f':
+            tmpstr[0] = '\f';
+            break;
+
+        case 'b':
+            tmpstr[0] = '\b';
+            break;
+        case '\"':
+            tmpstr[0] = '\"';
+            break;
+        case '\\':
+            tmpstr[0] = '\\';
+            break;
+
+        default:
+            printf("sosi\n");
+    }
+    strncpy(string_buf_ptr, tmpstr, 1);
+    string_buf_ptr++;
+}
+
+<STRING>\\[^\"ntfb\\] {
+
+    char tmpstr[1];
+    tmpstr[0] = yytext[1];
+    strncpy(string_buf_ptr, tmpstr, 1);
+    string_buf_ptr++;
+}
+
+<STRING>\" {
+    *string_buf_ptr = '\0';
+    cool_yylval.symbol = inttable.add_string(string_buf); 
+    BEGIN(INITIAL);
+    return (STR_CONST);
+}
+
+<STRING><<EOF>> {
+      yylval.error_msg = "EOF in string constant";
+        BEGIN(INITIAL);
+          return ERROR;
+}
+
+<STRING>[^"\"] { 
+    int len = strlen(yytext);
+    strncpy(string_buf_ptr, yytext, len);
+    string_buf_ptr+=len;
+}
+
+
+
 
 <INITIAL>[ ]+ {}
 <INITIAL>[ \t\r\f\v]+ {}
@@ -134,16 +230,6 @@ OPEN_COMM  "(*"
 
 <INITIAL>{PUNC} { return ((char)yytext[0]); }
 
-
-<INITIAL>\" {
-    BEGIN(STRING);
-    }
-
-<STRING>\" {
-  BEGIN(INITIAL);
-  }
-
-  <STRING>[^(\")]* { cool_yylval.symbol = inttable.add_string(yytext); return (STR_CONST);}
 
   <INITIAL>{INT_CONST} { cool_yylval.symbol = inttable.add_string(yytext); return (INT_CONST);}
   <INITIAL>{OBJECTID}  { cool_yylval.symbol = inttable.add_string(yytext); return (OBJECTID);}
