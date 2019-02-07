@@ -1,2 +1,2 @@
 # lexer
-lexer for cool
+parser and lexer for cool
