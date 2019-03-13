@@ -1,2 +1,2 @@
-# lexer
-parser and lexer for cool
+# Cool-compiler
+lexer parser and semant analyser for cool
