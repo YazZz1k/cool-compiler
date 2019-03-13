@@ -415,14 +415,15 @@ void class__class::semant(class_list_type *class_list, attr_list_type* attr_list
     DUMP("class__class \n");
     if (class_list->lookup(parent) == NULL) {
         handler->semant_error(curent->get_filename(), this)
-        << "Class " << name << "inherits from an undefined class " << parent << "\n";
+            < "Class " << name << "inherits from an undefined class " << parent << "\n";
         return;
     }
 
     if ( (parent == Bool)||
          (parent == Str ) )
     {
-        handler->semant_error(curent->get_filename(), this)<< "Class" << name << "cannot inherit class" << parent << "." << endl;
+        handler->semant_error(curent->get_filename(), this)
+            < "Class" << name << "cannot inherit class" << parent << "." << endl;
         return;
     }
 
@@ -507,7 +508,8 @@ void attr_class::semant(class_list_type *class_list, attr_list_type* attr_list, 
 
     if(name == self)
     {
-        handler->semant_error(curent->get_filename(), this)<<"'self' cannot be the name of an attribute."<<endl;
+        handler->semant_error(curent->get_filename(), this)
+            <"'self' cannot be the name of an attribute."<<endl;
         return;
     }
 
@@ -531,9 +533,13 @@ void attr_class::semant(class_list_type *class_list, attr_list_type* attr_list, 
         return;
     }
 
-    attr_list->addid(name, this);
 
+    //formal_class* attr = new formal_class(name, type_decl);
+    //attr_list->addid(name, attr);
+    attr_list->addid(name, this);
     type = type_decl;
+
+    DUMP("attr_class \n");
 }
 
 void formal_class::semant(class_list_type *class_list, attr_list_type* attr_list, method_list_type* method) {
@@ -541,26 +547,28 @@ void formal_class::semant(class_list_type *class_list, attr_list_type* attr_list
    Symbol name;
    Symbol type_decl;
      */
+
     DUMP("formal_class \n");
 
     if(name == self)
     {
-        handler->semant_error(curent->get_filename(), this) << "'self' cannot be the name of a formal parameter." << endl;
+        handler->semant_error(curent->get_filename(), this)
+            << "'self' cannot be the name of a formal parameter." << endl;
         return;
- 
-
     }
-
 
     Class_ class_ = class_list->lookup(type_decl);
 
     if(class_ == NULL)
     {
-        handler->semant_error(curent->get_filename(), this)<<"Нет такого класса"<<type_decl<<endl;
+        handler->semant_error(curent->get_filename(), this)
+            <"Undefined class"<<type_decl<<endl;
         return;
     }
+
     attr_list->addid(name, class_);
 
+    DUMP("end_formal_class \n");
 }
 
 void branch_class::semant(class_list_type *class_list, attr_list_type* attr_list, method_list_type* method) {
@@ -572,9 +580,12 @@ void branch_class::semant(class_list_type *class_list, attr_list_type* attr_list
 
     DUMP("branch_class \n");
 
-    attr_list->addid(name, this);
+    formal_class* attr = new formal_class(name, type_decl);
+    attr_list->addid(name, attr);
     expr->semant(class_list, attr_list, method);
     type = type_decl;
+
+    DUMP("end_branch_class \n");
 }
 
 Symbol branch_class::get_type() {
@@ -586,6 +597,7 @@ void assign_class::semant(class_list_type *class_list, attr_list_type* attr_list
        Symbol name;
        Expression expr;
      */
+
     DUMP("assign_class \n");
     expr->semant(class_list, attr_list, method);
     if (attr_list->lookup(name) != NULL &&
@@ -612,6 +624,7 @@ void static_dispatch_class::semant(class_list_type *class_list, attr_list_type* 
        Symbol name;
        Expressions actual;
      */
+
     DUMP("static_dispatch_class \n");
 
     expr->semant(class_list,attr_list,method);
@@ -619,7 +632,8 @@ void static_dispatch_class::semant(class_list_type *class_list, attr_list_type* 
 
     if(lub(class_list, type_name, expr_type) != type_name)
     {
-        handler->semant_error(curent->get_filename(), this) <<"Static dispatch error"<<endl;
+        handler->semant_error(curent->get_filename(), this) <<
+            "Static dispatch error: type of expression don't inherit"<< type_name <<endl;
         return;
     }
 
@@ -628,18 +642,22 @@ void static_dispatch_class::semant(class_list_type *class_list, attr_list_type* 
     tree_node *node = NULL;
 
     method_list_type *methods = call_class->get_methods();
-    node = methods->lookup(name);
+    node = find_method(class_list, type_name, name);
 
-
-    cout<<"UKAZATEL "<<node<<"\n\n\n\n\n"<<endl;
-
-    for (int i = actual->first(); actual->more(i); i = actual->next(i)) {
-        //Expression f = actual->nth(i);
-        //f->semant(class_list, attr_list, method);
-        //attr_list->addid(f->get_name(), f);
+    if( node == NULL )
+    {
+        handler->semant_error(curent->get_filename(), this) << 
+            "Static dispatch error: don't find method" << endl;
+        return;
     }
 
-    //type = node->get_type();
+    for (int i = actual->first(); actual->more(i); i = actual->next(i)) {
+        Expression f = actual->nth(i);
+        f->semant(class_list, attr_list, method);
+        attr_list->addid(f->get_name(), f);
+    }
+
+    type = node->get_type();
 }
 
 void dispatch_class::semant(class_list_type *class_list, attr_list_type* attr_list, method_list_type* method) {
@@ -648,6 +666,7 @@ void dispatch_class::semant(class_list_type *class_list, attr_list_type* attr_li
        Symbol name;
        Expressions actual;
      */
+
     DUMP("dispatch_class \n");
     attr_list->enterscope();
 
@@ -663,7 +682,7 @@ void dispatch_class::semant(class_list_type *class_list, attr_list_type* attr_li
     Symbol class_type = expr->get_type();
     tree_node *node;
     Class__class *call_class = curent;
-    //    std::cout << " > " << class_type->get_string() <<"\n";
+
     if (class_type == SELF_TYPE) {
         node = method->lookup(name);
     } else {
@@ -676,7 +695,8 @@ void dispatch_class::semant(class_list_type *class_list, attr_list_type* attr_li
     if (node == NULL)
         node = find_method(class_list, call_class->get_name(), name);
     if (node == NULL) {
-        handler->semant_error(curent->get_filename(), this) << " Dispatch to undefined method  " << name << "\n";
+        handler->semant_error(curent->get_filename(), this) << 
+            " Dispatch to undefined method  " << name << "\n";
         return;
     }
 
@@ -718,12 +738,13 @@ void cond_class::semant(class_list_type *class_list, attr_list_type* attr_list, 
        Expression then_exp;
        Expression else_exp;
      */
+
     DUMP("cond_class \n");
 
     pred->semant(class_list,attr_list,method);
 
     if(pred->get_type() != Bool){
-        handler->semant_error(curent->get_filename(), this)<<"OSHIBKA2\n";
+        handler->semant_error(curent->get_filename(), this)<<"";
         return;
     }
 
@@ -746,7 +767,8 @@ void loop_class::semant(class_list_type *class_list, attr_list_type* attr_list, 
     pred->semant(class_list,attr_list,method);
 
     if(pred->get_type() != Bool){
-        handler->semant_error(curent->get_filename(), this)<<"OSHIBKA3\n";
+        handler->semant_error(curent->get_filename(), this)
+            << "Loop error: type of expression must be Bool" << endl;
         return;
     }
 
@@ -761,6 +783,7 @@ void typcase_class::semant(class_list_type *class_list, attr_list_type* attr_lis
        Cases cases;
        Symbol type;
      */
+
     DUMP("typcase_class \n");
     Symbol last_type = NULL;
     expr->semant(class_list, attr_list, method);
@@ -780,19 +803,19 @@ void typcase_class::semant(class_list_type *class_list, attr_list_type* attr_lis
         /// > GET EXPRESION RETURN TYPE <
         Symbol test_type = f->get_expr();
         if (test_type == SELF_TYPE) {
-            //            test_type = curent->get_name();
+            test_type = curent->get_name();
             continue;
         }
         if (last_type != NULL) {
             DUMP(" call lub for " << last_type << " and " << test_type << " \n");
             last_type = lub(class_list, last_type, test_type);
+            DUMP("lub return " << last_type << endl);
         } else {
-           // DUMP(" first type " << test_type << "\n");
+            DUMP(" first type " << test_type << "\n");
             last_type = test_type;
         }
     }
     type = last_type;
-
 
     DUMP("end_typcase_class \n");
 }
@@ -823,12 +846,14 @@ void let_class::semant(class_list_type *class_list, attr_list_type* attr_list, m
        Expression init;
        Expression body;
      */
+
     DUMP("let_class \n");
 
-            //DUMP("\n___|____|____|____|____|__\n_|____|____|____|____|____|\n___|____|____|____|____|__\n_|____|____|____|____|____|\n___|____|____|____|____|__\n_|____|____|____|____|____|\n___|____|биться___|____|__\n_|____| головой _|____|____|\n___|____|сюда|____|____|__\n_|____|____|____|____|____|\n___|____|____|____|____|__\n");
+
     if( identifier == self )
     {
-        handler->semant_error(curent->get_filename(), this) << "'self' cannot be bound in a 'let' expression." << endl;
+        handler->semant_error(curent->get_filename(), this)
+            << "'self' cannot be bound in a 'let' expression." << endl;
         return;
     }
 
@@ -836,19 +861,26 @@ void let_class::semant(class_list_type *class_list, attr_list_type* attr_list, m
     Class__class* class_ = class_list->lookup(type_decl);
     if( (class_ == NULL) && (type_decl != SELF_TYPE ) )
     {
-        handler->semant_error(curent->get_filename(), this)<<"OSHIBKA4\n";
+        handler->semant_error(curent->get_filename(), this)
+            << "Undefined class" << type_decl << endl;
         return;
     }
 
 
+    attr_list->enterscope();
+
+
     formal_class* attr = new formal_class(identifier, type_decl);
-    attr_list->addid(identifier, attr);//спросить
+    attr_list->addid(identifier, attr);
 
     init->semant(class_list, attr_list, method);
     Symbol type_init = init->get_type();
 
     body->semant(class_list, attr_list, method);
     Symbol type_body = body->get_type();
+
+
+    attr_list->exitscope();
 
 
     if( (lub(class_list, type_init, type_decl) != type_decl) 
@@ -861,7 +893,6 @@ void let_class::semant(class_list_type *class_list, attr_list_type* attr_list, m
 
     type = type_body;
 
-
     DUMP("end_let_class \n");
 }
 
@@ -870,6 +901,7 @@ void plus_class::semant(class_list_type *class_list, attr_list_type* attr_list, 
        Expression e1;
        Expression e2;
      */
+
     DUMP("plus_class \n");
 
     e1->semant(class_list, attr_list, method);
@@ -881,10 +913,10 @@ void plus_class::semant(class_list_type *class_list, attr_list_type* attr_list, 
 
 
     if( (type_e1 != Int) || (type_e2 != Int) ){
-        handler->semant_error(curent->get_filename(), this)<<"non-Int arguments:"<<type_e1<<"+"<<type_e2<<endl;
+        handler->semant_error(curent->get_filename(), this)
+            << "non-Int arguments:"<<type_e1<<"+"<<type_e2<<endl;
         return;
     }
-
 
     type = Int;
 }
@@ -894,6 +926,7 @@ void sub_class::semant(class_list_type *class_list, attr_list_type* attr_list, m
        Expression e1;
        Expression e2;
      */
+
     DUMP("sub_class \n");
 
     e1->semant(class_list, attr_list, method);
@@ -905,7 +938,8 @@ void sub_class::semant(class_list_type *class_list, attr_list_type* attr_list, m
 
 
     if( (type_e1 != Int) || (type_e2 != Int) ){
-        handler->semant_error(curent->get_filename(), this)<<"non-Int arguments:"<<type_e1<<"+"<<type_e2<<endl;
+        handler->semant_error(curent->get_filename(), this)
+            <<"non-Int arguments:"<<type_e1<<"+"<<type_e2<<endl;
         return;
     }
 
@@ -930,7 +964,8 @@ void mul_class::semant(class_list_type *class_list, attr_list_type* attr_list, m
 
 
     if( (type_e1 != Int) || (type_e2 != Int) ){
-        handler->semant_error(curent->get_filename(), this)<<"non-Int arguments:"<<type_e1<<"+"<<type_e2<<endl;
+        handler->semant_error(curent->get_filename(), this)
+            << "non-Int arguments:"<<type_e1<<"+"<<type_e2<<endl;
         return;
     }
 
@@ -943,6 +978,7 @@ void divide_class::semant(class_list_type *class_list, attr_list_type* attr_list
        Expression e1;
        Expression e2;
      */
+
     DUMP("divide_class \n");
 
     e1->semant(class_list, attr_list, method);
@@ -954,10 +990,10 @@ void divide_class::semant(class_list_type *class_list, attr_list_type* attr_list
 
 
     if( (type_e1 != Int) || (type_e2 != Int) ){
-        handler->semant_error(curent->get_filename(), this)<<"non-Int arguments:"<<type_e1<<"+"<<type_e2<<endl;
+        handler->semant_error(curent->get_filename(), this)
+            << "non-Int arguments:"<<type_e1<<"+"<<type_e2<<endl;
         return;
     }
-
 
     type = Int;
 }
@@ -966,6 +1002,7 @@ void neg_class::semant(class_list_type *class_list, attr_list_type* attr_list, m
     /*
        Expression e1;
      */
+
     DUMP("neg_class \n");
 
     e1->semant(class_list, attr_list, method);
@@ -983,6 +1020,7 @@ void lt_class::semant(class_list_type *class_list, attr_list_type* attr_list, me
        Expression e1;
        Expression e2;
      */
+
     DUMP("lt_class \n");
 
     e1->semant(class_list, attr_list, method);
@@ -993,7 +1031,8 @@ void lt_class::semant(class_list_type *class_list, attr_list_type* attr_list, me
 
     if( (type_e1 != Int) || (type_e2 != Int) )
     {
-        handler->semant_error(curent->get_filename(), this)<<"Illegal comparison with a basic type."<<endl;
+        handler->semant_error(curent->get_filename(), this)
+            << "Illegal comparison with a basic type."<<endl;
         return;
     }
 
@@ -1005,8 +1044,8 @@ void eq_class::semant(class_list_type *class_list, attr_list_type* attr_list, me
        Expression e1;
        Expression e2;
      */
-    DUMP("eq_class \n");
 
+    DUMP("eq_class \n");
 
     e1->semant(class_list, attr_list, method);
     e2->semant(class_list, attr_list, method);
@@ -1016,7 +1055,8 @@ void eq_class::semant(class_list_type *class_list, attr_list_type* attr_list, me
     if( (type_e1 != type_e2)||
         ((type_e1 != Int)&&(type_e1 != IO)&&(type_e1 != Bool)) )
     {
-        handler->semant_error(curent->get_filename(), this)<<"Illegal comparison with a basic type."<<endl;
+        handler->semant_error(curent->get_filename(), this)
+            << "Illegal comparison with a basic type."<<endl;
         return;
     }
 
@@ -1028,6 +1068,7 @@ void leq_class::semant(class_list_type *class_list, attr_list_type* attr_list, m
        Expression e1;
        Expression e2;
      */
+
     DUMP("leq_class \n");
 
     e1->semant(class_list, attr_list, method);
@@ -1037,7 +1078,8 @@ void leq_class::semant(class_list_type *class_list, attr_list_type* attr_list, m
     Symbol type_e2 = e2->get_type();
 
     if( (type_e1 != Int) || (type_e2 != Int) ){
-        handler->semant_error(curent->get_filename(), this)<<"Illegal comparison with a basic type."<<endl;
+        handler->semant_error(curent->get_filename(), this)
+            << "Illegal comparison with a basic type."<<endl;
         return;
     }
 
@@ -1048,6 +1090,7 @@ void comp_class::semant(class_list_type *class_list, attr_list_type* attr_list, 
     /*
        Expression e1;
      */
+
     DUMP("comp_class \n");
 
     e1->semant(class_list, attr_list, method);
@@ -1063,6 +1106,7 @@ void int_const_class::semant(class_list_type *class_list, attr_list_type* attr_l
     /*
       Symbol token;
      */
+
     DUMP("int_const_class \n");
     type = Int;
 }
@@ -1071,6 +1115,7 @@ void bool_const_class::semant(class_list_type *class_list, attr_list_type* attr_
     /*
       Boolean val;
      */
+
     DUMP("bool_const_class \n");
     type = Bool;
 }
@@ -1079,6 +1124,7 @@ void string_const_class::semant(class_list_type *class_list, attr_list_type* att
     /*
       Symbol token;
      */
+
     DUMP("string_const_class \n");
     type = Str;
 }
@@ -1087,11 +1133,13 @@ void new__class::semant(class_list_type *class_list, attr_list_type* attr_list, 
     /*
       Symbol type_name;
      */
+
     DUMP("new__class \n");
     type = type_name;
 
     if (class_list->lookup(type_name) == NULL && type_name != SELF_TYPE) {
-        handler->semant_error(curent->get_filename(), this) << "'new' used with undefined class " << type_name << "\n";
+        handler->semant_error(curent->get_filename(), this) 
+            << "'new' used with undefined class " << type_name << endl;
         return;
     }
 
@@ -1101,6 +1149,7 @@ void isvoid_class::semant(class_list_type *class_list, attr_list_type* attr_list
     /*
       Expression e1;
      */
+
     DUMP("isvoid_class \n");
     e1->semant(class_list, attr_list, method);
     type = Bool;
@@ -1109,6 +1158,7 @@ void isvoid_class::semant(class_list_type *class_list, attr_list_type* attr_list
 void no_expr_class::semant(class_list_type *class_list, attr_list_type* attr_list, method_list_type* method) {
     /*
      */
+
     DUMP("no_expr_class \n");
     type = No_type;
 }
@@ -1117,31 +1167,25 @@ void object_class::semant(class_list_type *class_list, attr_list_type* attr_list
     /*
       Symbol name;
      */
+
     DUMP("object_class \n");
     if (name == self) {
         type = SELF_TYPE;
     } else {
         if (attr_list->lookup(name) != NULL) {
-            DUMP("object_class lookup \n");
-            DUMP("\n___________\n");
-            DUMP("name = ");
-            DUMP(name);
-            DUMP("\nQQQQQQQQQQQQQQQQQQQQQQQQQQQ\n");
             tree_node *node = attr_list->lookup(name);
 
             type = node->get_type();
-
         } else {
             DUMP("object_class + find\n");
             tree_node *node = find_attr(class_list, curent->get_name(), name);
             if (node == NULL) {
-                handler->semant_error(curent->get_filename(), this) << "Undeclared identifier " << name << "\n";
+                handler->semant_error(curent->get_filename(), this) 
+                    << "Undeclared identifier " << name << "\n";
                 return;
             }
-            DUMP("\n___|____|____|____|____|__\n_|____|____|____|____|____|\n___|____|____|____|____|__\n_|____|____|____|____|____|\n___|____|____|____|____|__\n_|____|____|____|____|____|\n___|____|биться___|____|__\n_|____| головой _|____|____|\n___|____|сюда|____|____|__\n_|____|____|____|____|____|\n___|____|____|____|____|__\n");
-            
-            type = node->get_type();
 
+            type = node->get_type();
         }
     }
 }
