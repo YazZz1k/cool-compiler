@@ -415,7 +415,7 @@ void class__class::semant(class_list_type *class_list, attr_list_type* attr_list
     DUMP("class__class \n");
     if (class_list->lookup(parent) == NULL) {
         handler->semant_error(curent->get_filename(), this)
-            < "Class " << name << "inherits from an undefined class " << parent << "\n";
+           << "Class " << name << "inherits from an undefined class " << parent << "\n";
         return;
     }
 
@@ -423,7 +423,7 @@ void class__class::semant(class_list_type *class_list, attr_list_type* attr_list
          (parent == Str ) )
     {
         handler->semant_error(curent->get_filename(), this)
-            < "Class" << name << "cannot inherit class" << parent << "." << endl;
+            << "Class" << name << "cannot inherit class" << parent << "." << endl;
         return;
     }
 
@@ -509,7 +509,7 @@ void attr_class::semant(class_list_type *class_list, attr_list_type* attr_list, 
     if(name == self)
     {
         handler->semant_error(curent->get_filename(), this)
-            <"'self' cannot be the name of an attribute."<<endl;
+            <<"'self' cannot be the name of an attribute."<<endl;
         return;
     }
 
@@ -562,7 +562,7 @@ void formal_class::semant(class_list_type *class_list, attr_list_type* attr_list
     if(class_ == NULL)
     {
         handler->semant_error(curent->get_filename(), this)
-            <"Undefined class"<<type_decl<<endl;
+            <<"Undefined class"<<type_decl<<endl;
         return;
     }
 
@@ -1052,12 +1052,15 @@ void eq_class::semant(class_list_type *class_list, attr_list_type* attr_list, me
 
     Symbol type_e1 = e1->get_type();
     Symbol type_e2 = e2->get_type();
-    if( (type_e1 != type_e2)||
-        ((type_e1 != Int)&&(type_e1 != IO)&&(type_e1 != Bool)) )
+
+    if( (type_e1 == Int)||(type_e1 == Str)||(type_e1 == Bool) )
     {
-        handler->semant_error(curent->get_filename(), this)
-            << "Illegal comparison with a basic type."<<endl;
-        return;
+        if( type_e1 != type_e2 )
+        {
+            handler->semant_error(curent->get_filename(), this)
+                << "Illegal comparison with a basic type."<<endl;
+            return;
+        }
     }
 
     type = Bool;
