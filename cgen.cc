@@ -653,17 +653,16 @@ void lt_class::cgen(ostream &s, Symbol self_class, Environment var, Environment 
     INFO_IN_AS;
 
     e1->cgen(s, self, var, met);
-    emit_move(T1, ACC, s);
+    emit_fetch_int(T1, ACC, s);
     e2->cgen(s, self, var, met);
-    emit_move(T2, ACC, s);
+    emit_fetch_int(T2, ACC, s);
 
     int label = create_label();
 
+    emit_load_bool(ACC, truebool, s);
     emit_blt(T1, T2, label, s);
     emit_load_bool(ACC, falsebool, s);
-
     emit_label_def(label, s);
-    emit_load_bool(ACC, falsebool, s);
 
     INFO_OUT_AS;
 }
@@ -671,7 +670,6 @@ void lt_class::cgen(ostream &s, Symbol self_class, Environment var, Environment 
 void eq_class::cgen(ostream &s, Symbol self_class, Environment var, Environment met) {
     INFO_IN_AS;
 
-    s<<"#EQUALITY START" <<endl;
     e1->cgen(s, self, var, met);
     emit_push(ACC, s);
     e2->cgen(s, self, var, met);
@@ -680,14 +678,16 @@ void eq_class::cgen(ostream &s, Symbol self_class, Environment var, Environment 
     emit_pop(T2, s);
     emit_pop(T1, s);
 
-    //call equality_test from trap handler 
     emit_load_bool(ACC, truebool, s);
     emit_load_bool(A1, falsebool, s);
+
+
+    int end = create_label();
+    emit_beq(T1, T2, end, s);
+
+    //call equality_test from trap handler
     emit_jal(EQUALITY_TEST,s);
-
-    emit_label_def(create_label(), s);
-
-    s<<"#EQUALITY END" <<endl;
+    emit_label_def(end, s);
 
     INFO_OUT_AS;
 }
@@ -709,11 +709,21 @@ void leq_class::cgen(ostream &s, Symbol self_class, Environment var, Environment
     INFO_OUT_AS;
 }
 
-//to do
 void comp_class::cgen(ostream &s, Symbol self_class, Environment var, Environment met) {
     INFO_IN_AS;
 
     e1->cgen(s, self, var, met);
+
+    int end_label = create_label();
+    emit_move(T3, ACC, s);
+    emit_load_bool(T1, truebool,  s);
+    emit_load_bool(T2, falsebool, s);
+
+    emit_move(ACC, T1, s);
+    emit_beq(T3, T1, end_label,s);
+    emit_move(ACC, T2, s);
+
+    emit_label_def(end_label, s);
 
     INFO_OUT_AS;
 }
