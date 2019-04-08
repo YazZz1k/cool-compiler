@@ -187,12 +187,30 @@ void program_class::cgen(ostream &s) {
 void attr_class::cgen(std::ostream& s, Symbol self_class, Environment var, Environment met) {
     INFO_IN
 
+    init->cgen(s, self_class, var, met);
+
+    //get offset
+    auto pred = [&](EnvElement attr){
+        //cout<<attr.name<<endl;
+        return attr.name == name;
+    };
+
+    auto finded = std::find_if(var->rbegin(), var->rend(), pred);
+
+    int offset = (finded == var->rend()) ? ( 0 ) : ( finded->offset );
+
+    //cout<<"attrname = "<<finded->name<<endl;
+
+    emit_store(ACC, offset, SELF, s);
+
     INFO_OUT
 }
 
 void method_class::cgen(ostream& s, Symbol self_class, Environment var, Environment met) {
     INFO_IN
     init_alloc_temp();
+
+
     auto curr_var = new std::vector<EnvElement>(*var);
     int size = calc_temp() + formals->len();
 
@@ -207,6 +225,7 @@ void method_class::cgen(ostream& s, Symbol self_class, Environment var, Environm
             s << " # unknown formal" << endl;
         }
     }
+
     expr->cgen(s, self_class, curr_var, met);
     INFO_OUT
 }
@@ -247,7 +266,7 @@ void static_dispatch_class::cgen(ostream &s, Symbol self_class, Environment var,
     CgenNodeP node = codegen_classtable->lookup(type);
     auto table = node->get_method_table();
     auto pred = [ = ](EnvElement a){return a.name == name;};
-    
+
     auto off = std::find_if(table->begin(), table->end(), pred);
     int offset = 1;
     if(off != table->end())
@@ -272,6 +291,7 @@ void static_dispatch_class::cgen(ostream &s, Symbol self_class, Environment var,
 
 void dispatch_class::cgen(ostream &s, Symbol self_class, Environment var, Environment met) {
     INFO_IN_AS;
+
     auto tmp_met = new std::vector<EnvElement>(*met);
     Symbol type = expr->get_type();
     if (type == SELF_TYPE) {
@@ -305,7 +325,7 @@ void dispatch_class::cgen(ostream &s, Symbol self_class, Environment var, Enviro
     {
         assert(0);
     }
-    
+
     emit_label_def(jump_label, s);
     emit_load(T1, DISPTABLE_OFFSET, ACC, s);
     emit_load(T1, offset, T1, s);
@@ -397,6 +417,10 @@ void typcase_class::cgen(ostream &s, Symbol self_class, Environment var, Environ
 void block_class::cgen(ostream &s, Symbol self_class, Environment var, Environment met) {
     INFO_IN_AS;
 
+    for (int expr = body->first(); body->more(expr); expr = body->next(expr)) {
+        body->nth(expr)->cgen(s, self_class, var, met);
+    }
+
     INFO_OUT_AS;
 }
 
@@ -431,8 +455,25 @@ void let_class::cgen(ostream &s, Symbol self_class, Environment var, Environment
 }
 
 
+void get_args_for_binary_functions(){} //to do
+
+
 void plus_class::cgen(ostream &s, Symbol self_class, Environment var, Environment met) {
     INFO_IN_AS;
+
+    e1->cgen(s, self_class, var, met);
+    emit_push(ACC, s); //e1 in stack
+    e2->cgen(s, self_class, var, met);
+    emit_push(ACC, s); //e2 in stack
+
+    emit_pop(T2, s); //e2 in T2
+    emit_pop(T1, s); //e1 in T1
+
+    emit_fetch_int( T1, T1, s);
+    emit_fetch_int( T2, T2, s);
+
+    emit_add(T3, T1, T2, s);
+    emit_store_int( T3, ACC, s);
 
     INFO_OUT_AS;
 }
@@ -440,11 +481,41 @@ void plus_class::cgen(ostream &s, Symbol self_class, Environment var, Environmen
 void sub_class::cgen(ostream &s, Symbol self_class, Environment var, Environment met) {
     INFO_IN_AS;
 
+    e1->cgen(s, self_class, var, met);
+    emit_push(ACC, s); //e1 in stack
+    e2->cgen(s, self_class, var, met);
+    emit_push(ACC, s); //e2 in stack
+
+    emit_pop(T2, s); //e2 in T2
+    emit_pop(T1, s); //e1 in T1
+
+    emit_fetch_int( T1, T1, s);
+    emit_fetch_int( T2, T2, s);
+
+    emit_sub(T3, T1, T2, s);
+    emit_store_int( T3, ACC, s);
+
+
     INFO_OUT_AS;
 }
 
 void mul_class::cgen(ostream &s, Symbol self_class, Environment var, Environment met) {
     INFO_IN_AS;
+
+    e1->cgen(s, self_class, var, met);
+    emit_push(ACC, s); //e1 in stack
+    e2->cgen(s, self_class, var, met);
+    emit_push(ACC, s); //e2 in stack
+
+    emit_pop(T2, s); //e2 in T2
+    emit_pop(T1, s); //e1 in T1
+
+    emit_fetch_int( T1, T1, s);
+    emit_fetch_int( T2, T2, s);
+
+    emit_mul(T3, T1, T2, s);
+    emit_store_int( T3, ACC, s);
+
 
     INFO_OUT_AS;
 }
@@ -452,24 +523,42 @@ void mul_class::cgen(ostream &s, Symbol self_class, Environment var, Environment
 void divide_class::cgen(ostream &s, Symbol self_class, Environment var, Environment met) {
     INFO_IN_AS;
 
+    e1->cgen(s, self_class, var, met);
+    emit_push(ACC, s); //e1 in stack
+    e2->cgen(s, self_class, var, met);
+    emit_push(ACC, s); //e2 in stack
+
+    emit_pop(T2, s); //e2 in T2
+    emit_pop(T1, s); //e1 in T1
+
+    emit_fetch_int( T1, T1, s);
+    emit_fetch_int( T2, T2, s);
+
+    emit_div(T3, T1, T2, s);
+    emit_store_int( T3, ACC, s);
+
     INFO_OUT_AS;
 }
 
 void neg_class::cgen(ostream &s, Symbol self_class, Environment var, Environment met) {
     INFO_IN_AS;
+
     e1->cgen(s, self_class, var, met);
+
     if (expr_is_const) {
         emit_push(ACC, s);
         emit_new(Int, s);
         emit_pop(T3, s);
         emit_fetch_int(T3, T3, s);
 
-        expr_is_const = 0;
+        expr_is_const = false;
     } else {
         emit_fetch_int(T3, ACC, s);
     }
+
     emit_neg(T3, T3, s);
     emit_store_int( T3, ACC, s);
+
     INFO_OUT_AS;
 }
 
