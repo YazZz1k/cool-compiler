@@ -548,6 +548,7 @@ void sub_class::cgen(ostream &s, Symbol self_class, Environment var, Environment
     emit_sub(T3, T1, T2, s);
     emit_store_int( T3, ACC, s);
 
+    expr_is_const = false;
 
     INFO_OUT_AS;
 }
@@ -585,6 +586,8 @@ void mul_class::cgen(ostream &s, Symbol self_class, Environment var, Environment
 
     emit_mul(T3, T1, T2, s);
     emit_store_int( T3, ACC, s);
+
+    expr_is_const = false;
 
     INFO_OUT_AS;
 }
@@ -624,6 +627,8 @@ void divide_class::cgen(ostream &s, Symbol self_class, Environment var, Environm
     emit_div(T3, T1, T2, s);
     emit_store_int( T3, ACC, s);
 
+    expr_is_const = false;
+
     INFO_OUT_AS;
 }
 
@@ -660,6 +665,7 @@ void lt_class::cgen(ostream &s, Symbol self_class, Environment var, Environment 
     int label = create_label();
 
     emit_load_bool(ACC, truebool, s);
+
     emit_blt(T1, T2, label, s);
     emit_load_bool(ACC, falsebool, s);
     emit_label_def(label, s);
@@ -714,16 +720,11 @@ void comp_class::cgen(ostream &s, Symbol self_class, Environment var, Environmen
 
     e1->cgen(s, self, var, met);
 
-    int end_label = create_label();
-    emit_move(T3, ACC, s);
-    emit_load_bool(T1, truebool,  s);
+    emit_load_bool(T1, truebool, s);
     emit_load_bool(T2, falsebool, s);
 
-    emit_move(ACC, T1, s);
-    emit_beq(T3, T1, end_label,s);
-    emit_move(ACC, T2, s);
-
-    emit_label_def(end_label, s);
+    emit_xor(ACC, ACC, T1, s);
+    emit_xor(ACC, ACC, T2, s);
 
     INFO_OUT_AS;
 }
