@@ -474,9 +474,6 @@ void let_class::cgen(ostream &s, Symbol self_class, Environment var, Environment
 }
 
 
-void get_args_for_binary_functions(){} //to do
-
-
 void plus_class::cgen(ostream &s, Symbol self_class, Environment var, Environment met) {
     INFO_IN_AS;
 
@@ -548,7 +545,7 @@ void sub_class::cgen(ostream &s, Symbol self_class, Environment var, Environment
     emit_sub(T3, T1, T2, s);
     emit_store_int( T3, ACC, s);
 
-    expr_is_const = false;
+//    expr_is_const = false;
 
     INFO_OUT_AS;
 }
@@ -591,7 +588,6 @@ void mul_class::cgen(ostream &s, Symbol self_class, Environment var, Environment
 
     INFO_OUT_AS;
 }
-
 void divide_class::cgen(ostream &s, Symbol self_class, Environment var, Environment met) {
     INFO_IN_AS;
 
@@ -658,10 +654,12 @@ void lt_class::cgen(ostream &s, Symbol self_class, Environment var, Environment 
     INFO_IN_AS;
 
     e1->cgen(s, self, var, met);
-    emit_fetch_int(T1, ACC, s);
+    emit_push(ACC, s);
     e2->cgen(s, self, var, met);
     emit_fetch_int(T2, ACC, s);
 
+    emit_pop(T1, s);
+    emit_fetch_int(T1, T1, s);
     int label = create_label();
 
     emit_load_bool(ACC, truebool, s);
@@ -686,7 +684,6 @@ void eq_class::cgen(ostream &s, Symbol self_class, Environment var, Environment 
 
     emit_load_bool(ACC, truebool, s);
     emit_load_bool(A1, falsebool, s);
-
 
     int end = create_label();
     emit_beq(T1, T2, end, s);
