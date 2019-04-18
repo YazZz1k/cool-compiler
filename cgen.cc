@@ -87,7 +87,7 @@ extern int cgen_debug;
 //
 // Three symbols from the semantic analyzer (semant.cc) are used.
 // If e : No_type, then no code is generated for e.
-// Special code is generated for new SELF_TYPE.
+// Spcial code is generated for new SELF_TYPE.
 // The name "self" also generates code different from other references.
 //
 //////////////////////////////////////////////////////////////////////
@@ -470,23 +470,25 @@ void let_class::cgen(ostream &s, Symbol self_class, Environment var, Environment
 
 void arith_get_args(ostream& s, Expression& e1, Expression& e2,  Symbol self_class, Environment var, Environment met) {
 
-    e1->cgen(s, self_class, var, met);
-    emit_push(ACC, s); //e1 in stack
-    bool e1_is_const = expr_is_const;
 
+    e1->cgen(s, self_class, var, met);
+    bool e1_is_const = expr_is_const;
+    emit_push(ACC, s);
     e2->cgen(s, self_class, var, met);
-    emit_push(ACC, s); //e2 in stack
     bool e2_is_const = expr_is_const;
 
-    emit_pop(T2, s); //e2 in T2
-    emit_pop(T1, s); //e1 in T1
+    emit_push(ACC, s);
 
-    emit_push(T1, s);
-    emit_new(Int, s);
+    if(e2_is_const || e1_is_const)
+        emit_new(Int, s);
+
+    emit_pop(T2, s);
     emit_pop(T1, s);
 
     emit_fetch_int(T1, T1, s);
-    emit_fetch_int(T2, T2,s);
+    emit_fetch_int(T2, T2, s);
+
+    expr_is_const = false;
 }
 
 
@@ -516,6 +518,7 @@ void mul_class::cgen(ostream &s, Symbol self_class, Environment var, Environment
     INFO_IN_AS;
 
     arith_get_args(s, e1, e2, self_class, var, met);
+
     emit_mul(T2, T1, T2, s);
     emit_store_int(T2, ACC, s);
 
