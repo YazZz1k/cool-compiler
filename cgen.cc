@@ -470,20 +470,31 @@ void let_class::cgen(ostream &s, Symbol self_class, Environment var, Environment
 
 void arith_get_args(ostream& s, Expression& e1, Expression& e2,  Symbol self_class, Environment var, Environment met) {
 
-
     e1->cgen(s, self_class, var, met);
     bool e1_is_const = expr_is_const;
     emit_push(ACC, s);
+
     e2->cgen(s, self_class, var, met);
     bool e2_is_const = expr_is_const;
-
     emit_push(ACC, s);
 
-    if(e2_is_const || e1_is_const)
+    if(e2_is_const && e1_is_const)
+    {
         emit_new(Int, s);
+        emit_pop(T2, s);
+        emit_pop(T1, s);
+    }
+    else
+    {
+        emit_pop(T2, s);
+        emit_pop(T1, s);
 
-    emit_pop(T2, s);
-    emit_pop(T1, s);
+        if(!e1_is_const)
+           emit_move(ACC, T1, s);
+
+        if(!e1_is_const)
+            emit_move(ACC, T1, s);
+    }
 
     emit_fetch_int(T1, T1, s);
     emit_fetch_int(T2, T2, s);
@@ -524,6 +535,7 @@ void mul_class::cgen(ostream &s, Symbol self_class, Environment var, Environment
 
     INFO_OUT_AS;
 }
+
 void divide_class::cgen(ostream &s, Symbol self_class, Environment var, Environment met) {
     INFO_IN_AS;
 
@@ -641,7 +653,7 @@ void comp_class::cgen(ostream &s, Symbol self_class, Environment var, Environmen
 void int_const_class::cgen(ostream& s, Symbol self_class, Environment var, Environment met) {
     INFO_IN_AS;
     //
-    // Need to be sure we have an IntEntry *, not an arbitrary Symbol
+    // Need to be sue have an IntEntry *, not an arbitrary Symbol
     //
     emit_load_int(ACC, inttable.lookup_string(token->get_string()), s);
     expr_is_const = true;
